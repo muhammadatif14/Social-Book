@@ -1,0 +1,141 @@
+<div class="my-assistant-container">
+  <!-- Header -->
+  <div class="assistant-header">
+    <div class="header-left">
+      <i class="fas fa-robot"></i>
+      <h2>My Assistant - Jarvis</h2>
+    </div>
+    <div class="header-right">
+      <div class="status-indicator" [ngClass]="'status-' + status()">
+        <span class="status-dot"></span>
+        <span class="status-text">{{ status() | titlecase }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Control Panel -->
+  <div class="control-panel">
+    <button 
+      class="btn btn-primary" 
+      (click)="initializeJarvis()" 
+      [disabled]="status() === 'starting' || status() === 'ready' || isLoading">
+      <i class="fas fa-play"></i>
+      {{ status() === 'idle' ? 'Start Jarvis' : 'Starting...' }}
+    </button>
+
+    <button 
+      class="btn btn-warning" 
+      (click)="restartJarvis()" 
+      [disabled]="status() === 'idle' || status() === 'starting' || isLoading">
+      <i class="fas fa-redo"></i>
+      Restart
+    </button>
+
+    <button 
+      class="btn btn-danger" 
+      (click)="stopJarvis()" 
+      [disabled]="status() === 'idle' || status() === 'starting' || isLoading">
+      <i class="fas fa-stop"></i>
+      Stop
+    </button>
+
+    <button 
+      class="btn btn-secondary" 
+      (click)="clearChat()" 
+      [disabled]="messages().length === 0">
+      <i class="fas fa-trash"></i>
+      Clear Chat
+    </button>
+
+    <button 
+      class="btn" 
+      [ngClass]="voiceInputActive() ? 'btn-success' : 'btn-outline-secondary'" 
+      (click)="toggleVoiceInput()" 
+      [disabled]="status() !== 'ready'">
+      <i class="fas" [ngClass]="voiceInputActive() ? 'fa-microphone' : 'fa-microphone-slash'"></i>
+      {{ voiceInputActive() ? 'Voice Active' : 'Voice Input' }}
+    </button>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="loading-indicator">
+    <div class="spinner"></div>
+    <span>Loading Jarvis...</span>
+  </div>
+
+  <!-- Chat Area -->
+  <div class="chat-container" [class.disabled]="status() !== 'ready'">
+    <!-- Connection Status -->
+    <div class="connection-status" *ngIf="status() === 'ready'">
+      <i class="fas" [ngClass]="isConnected() ? 'fa-wifi text-success' : 'fa-wifi-slash text-warning'"></i>
+      <span>{{ isConnected() ? 'Connected to Jarvis' : 'Connecting...' }}</span>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-area" #messagesContainer>
+      <div *ngIf="messages().length === 0 && status() === 'ready'" class="welcome-message">
+        <div class="welcome-content">
+          <i class="fas fa-robot fa-3x"></i>
+          <h3>Welcome to Jarvis!</h3>
+          <p>Your AI assistant is ready to help. Ask me anything or give me commands!</p>
+        </div>
+      </div>
+
+      <div *ngFor="let message of messages(); trackBy: trackByMessage" 
+           class="message" 
+           [ngClass]="message.isUser ? 'user-message' : 'assistant-message'">
+        <div class="message-avatar">
+          <i class="fas" [ngClass]="message.isUser ? 'fa-user' : 'fa-robot'"></i>
+        </div>
+        <div class="message-content">
+          <div class="message-text" [innerHTML]="formatMessage(message.content)"></div>
+          <div class="message-meta">
+            <span class="timestamp">{{ message.timestamp | date:'short' }}</span>
+            <span *ngIf="message.isVoice" class="voice-indicator">
+              <i class="fas fa-microphone"></i>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <div class="input-group">
+        <textarea 
+          [(ngModel)]="currentMessage" 
+          (keydown)="onKeyPress($event)"
+          placeholder="Type your message to Jarvis..." 
+          class="form-control message-input"
+          rows="2"
+          [disabled]="status() !== 'ready'"></textarea>
+        <div class="input-actions">
+          <button 
+            class="btn btn-primary send-btn" 
+            (click)="sendMessage()" 
+            [disabled]="!currentMessage.trim() || status() !== 'ready'">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Messages -->
+  <div class="status-messages">
+    <div *ngIf="status() === 'error'" class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle"></i>
+      Jarvis encountered an error. Please try restarting.
+    </div>
+    
+    <div *ngIf="status() === 'idle'" class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      Click "Start Jarvis" to begin your AI assistant session.
+    </div>
+
+    <div *ngIf="status() === 'starting'" class="alert alert-warning">
+      <i class="fas fa-clock"></i>
+      Starting Jarvis... Please wait.
+    </div>
+  </div>
+</div>

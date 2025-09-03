@@ -141,6 +141,11 @@ export class Chat implements OnInit, OnDestroy {
 
     // Mark messages as read
     this.chatService.markMessagesAsRead(user.id);
+    
+    // Update unread count after marking messages as read
+    setTimeout(() => {
+      this.chatService.initializeUnreadCount();
+    }, 500);
   }
 
   loadChatHistory() {

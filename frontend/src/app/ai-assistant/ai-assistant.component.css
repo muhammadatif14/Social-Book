@@ -59,35 +59,7 @@
   gap: 6px;
   font-size: 0.9rem;
   opacity: 0.9;
-}
 
-.ai-status.online i {
-  color: #4caf50;
-  animation: pulse 2s infinite;
-}
-
-.ai-status.offline i {
-  color: #ff4757;
-  animation: pulse 2s infinite;
-}
-
-.ai-controls {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.language-selector {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.language-selector label {
-  font-size: 1.2rem;
-}
-
-.language-selector select {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
@@ -497,7 +469,69 @@
   }
 }
 
-/* Responsive Design */
+/* Jarvis-specific Styles */
+/* Enhanced status indicators */
+.ai-status.jarvis-online {
+  background: rgba(255, 107, 53, 0.1);
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 53, 0.2);
+}
+
+/* Jarvis mode header background */
+.ai-header.jarvis-active {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+}
+
+/* Enhanced Jarvis message styling */
+.message.jarvis-message {
+  position: relative;
+}
+
+.message.jarvis-message::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, #ff6b35, #f7931e);
+  border-radius: 2px;
+}
+
+/* Jarvis voice button */
+.voice-btn.jarvis-mode {
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+}
+
+.voice-btn.jarvis-mode:hover {
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+/* Responsive adjustments for Jarvis controls */
+@media (max-width: 768px) {
+  .jarvis-controls {
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  
+  .mode-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .jarvis-power-controls {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .jarvis-features {
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+  }
+}
 @media (max-width: 768px) {
   .ai-assistant-wrapper {
     margin: 10px;

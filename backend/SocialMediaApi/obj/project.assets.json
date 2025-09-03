@@ -5167,11 +5167,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\MuhammadAtif14\\Documents\\social-media\\backend\\SocialMediaApi\\SocialMediaApi.csproj",
+      "projectUniqueName": "C:\\social-media\\backend\\SocialMediaApi\\SocialMediaApi.csproj",
       "projectName": "SocialMediaApi",
-      "projectPath": "C:\\Users\\MuhammadAtif14\\Documents\\social-media\\backend\\SocialMediaApi\\SocialMediaApi.csproj",
+      "projectPath": "C:\\social-media\\backend\\SocialMediaApi\\SocialMediaApi.csproj",
       "packagesPath": "C:\\Users\\MuhammadAtif14\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\MuhammadAtif14\\Documents\\social-media\\backend\\SocialMediaApi\\obj\\",
+      "outputPath": "C:\\social-media\\backend\\SocialMediaApi\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

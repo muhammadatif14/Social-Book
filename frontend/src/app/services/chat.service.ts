@@ -39,9 +39,11 @@ export class ChatService {
   // Subjects for real-time updates
   private messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
   private conversationsSubject = new BehaviorSubject<Conversation[]>([]);
+  private unreadCountSubject = new BehaviorSubject<number>(0);
   
   public messages$ = this.messagesSubject.asObservable();
   public conversations$ = this.conversationsSubject.asObservable();
+  public unreadCount$ = this.unreadCountSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -93,11 +95,26 @@ export class ChatService {
 
         const currentMessages = this.messagesSubject.value;
         this.messagesSubject.next([...currentMessages, chatMessage]);
+        
+        // Update unread count
+        this.updateUnreadCount();
       });
 
-      // Listen for message sent confirmations
+      // Listen for message sent confirmations (sender sees their own message)
       this.hubConnection.on('MessageSent', (response: any) => {
         console.log('Message sent successfully:', response);
+        const sentMessage: ChatMessage = {
+          id: response.id,
+          senderId: currentUser?.id || 0,
+          senderName: currentUser?.username || 'You',
+          receiverId: response.receiverId,
+          message: response.message,
+          sentAt: new Date(response.sentAt),
+          isRead: false
+        };
+
+        const currentMessages = this.messagesSubject.value;
+        this.messagesSubject.next([...currentMessages, sentMessage]);
       });
 
       // Listen for read receipts
@@ -109,6 +126,9 @@ export class ChatService {
             : msg
         );
         this.messagesSubject.next(updatedMessages);
+        
+        // Update unread count
+        this.updateUnreadCount();
       });
 
     } catch (err) {
@@ -159,6 +179,10 @@ export class ChatService {
 
     try {
       await this.hubConnection.invoke('MarkMessagesAsRead', senderId);
+      // Update unread count after marking as read
+      setTimeout(() => {
+        this.updateUnreadCount();
+      }, 100);
     } catch (err) {
       console.error('Error marking messages as read:', err);
     }
@@ -187,5 +211,35 @@ export class ChatService {
   // Clear messages
   clearMessages(): void {
     this.messagesSubject.next([]);
+  }
+
+  // Update unread message count
+  private updateUnreadCount(): void {
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) return;
+
+    this.getUnreadMessageCount(currentUser.id).subscribe({
+      next: (count) => {
+        this.unreadCountSubject.next(count);
+      },
+      error: (error) => {
+        console.error('Error getting unread count:', error);
+      }
+    });
+  }
+
+  // Get unread message count for a user
+  getUnreadMessageCount(userId: number): Observable<number> {
+    return this.http.get<number>(`${this.apiUrl}/unread-count/${userId}`);
+  }
+
+  // Get current unread count value
+  getCurrentUnreadCount(): number {
+    return this.unreadCountSubject.value;
+  }
+
+  // Initialize unread count
+  initializeUnreadCount(): void {
+    this.updateUnreadCount();
   }
 }

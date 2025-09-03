@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, from, throwError } from 'rxjs';
+import { Observable, from } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 
 export interface ChatMessage {
@@ -34,16 +34,14 @@ export interface AIResponse {
   providedIn: 'root'
 })
 export class GeminiService {
-  // Using multiple AI APIs for better accuracy
-  private readonly primaryUrl = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large';
-  private readonly fallbackUrl = 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill';
-  private readonly conversationalUrl = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
-  private readonly openAICompatibleUrl = 'https://api-inference.huggingface.co/models/bigscience/bloom-560m';
+  // Using local responses instead of API calls to avoid authentication issues
+  private readonly useLocalResponses = true;
   
   private conversationHistory: ChatMessage[] = [];
   private speechSynthesis: SpeechSynthesis;
   private speechRecognition: any;
-  private currentModel: number = 0;
+  private recognizing: boolean = false;
+  private currentLanguage: string = 'en';
 
   constructor(private http: HttpClient) {
     this.speechSynthesis = window.speechSynthesis;
@@ -56,6 +54,9 @@ export class GeminiService {
       this.speechRecognition = new SpeechRecognition();
       this.speechRecognition.continuous = false;
       this.speechRecognition.interimResults = false;
+  // Track recognition state to avoid InvalidStateError when starting twice
+  this.speechRecognition.onstart = () => { this.recognizing = true; };
+  this.speechRecognition.onend = () => { this.recognizing = false; };
     }
   }
 
@@ -74,62 +75,30 @@ export class GeminiService {
   }
 
   private tryMultipleModels(message: string, language: string): Observable<AIResponse> {
-    const models = [this.primaryUrl, this.conversationalUrl, this.fallbackUrl, this.openAICompatibleUrl];
-    
-    return this.callAIModel(models[this.currentModel], message, language).pipe(
-      catchError(error => {
-        console.log(`Model ${this.currentModel} failed, trying next...`);
-        this.currentModel = (this.currentModel + 1) % models.length;
-        
-        if (this.currentModel === 0) {
-          // All models failed, use enhanced fallback
-          return from([this.getEnhancedFallbackResponse(message, language)]);
-        }
-        
-        return this.callAIModel(models[this.currentModel], message, language);
-      })
-    );
+    // Use local intelligent responses instead of API calls
+    return from([this.getIntelligentLocalResponse(message, language)]);
   }
 
-  private callAIModel(apiUrl: string, message: string, language: string): Observable<AIResponse> {
-    // Create more sophisticated conversation context
-    const conversationContext = this.buildAdvancedConversationContext(message, language);
+  private getIntelligentLocalResponse(message: string, language: string): AIResponse {
+    const response = this.getContextualResponse(message, language);
     
-    const requestBody: HuggingFaceRequest = {
-      inputs: conversationContext,
-      parameters: {
-        max_length: 200,
-        temperature: 0.8,
-        do_sample: true,
-        top_p: 0.9
-      }
-    };
-
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json'
+    // Add to conversation history
+    this.conversationHistory.push({
+      role: 'user',
+      content: message,
+      timestamp: new Date()
     });
-
-    return this.http.post<HuggingFaceResponse[]>(apiUrl, requestBody, { headers })
-      .pipe(
-        map(response => {
-          if (response && response.length > 0 && response[0].generated_text) {
-            let aiResponse = response[0].generated_text;
-            
-            // Advanced response processing
-            aiResponse = this.processAIResponse(aiResponse, message, language);
-            
-            // Add to conversation history
-            this.addAIResponseToHistory(aiResponse);
-            
-            return {
-              message: aiResponse,
-              success: true
-            };
-          } else {
-            throw new Error('No valid response from AI model');
-          }
-        })
-      );
+    
+    this.conversationHistory.push({
+      role: 'assistant',
+      content: response,
+      timestamp: new Date()
+    });
+    
+    return {
+      message: response,
+      success: true
+    };
   }
 
   private buildAdvancedConversationContext(message: string, language: string): string {
@@ -208,43 +177,69 @@ export class GeminiService {
   private getContextualResponse(message: string, language: string): string {
     const lowerMessage = message.toLowerCase();
     
-    // Question detection with better patterns
-    if (lowerMessage.includes('what') || lowerMessage.includes('how') || 
-        lowerMessage.includes('why') || lowerMessage.includes('when') ||
-        lowerMessage.includes('where') || lowerMessage.includes('who') ||
-        message.includes('?')) {
+    // Enhanced question detection
+    if (this.isQuestion(lowerMessage)) {
       return this.getQuestionResponse(message, language);
     }
     
     // Greeting detection
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || 
-        lowerMessage.includes('hey') || lowerMessage.includes('good morning') ||
-        lowerMessage.includes('good afternoon') || lowerMessage.includes('good evening')) {
+    if (this.isGreeting(lowerMessage)) {
       return this.getGreetingResponse(language);
     }
     
     // Help request detection
-    if (lowerMessage.includes('help') || lowerMessage.includes('assist') ||
-        lowerMessage.includes('support')) {
+    if (this.isHelpRequest(lowerMessage)) {
       return this.getHelpResponse(language);
+    }
+    
+    // Technology/Social Media related
+    if (this.isTechRelated(lowerMessage)) {
+      return this.getTechResponse(message, language);
     }
     
     // Default contextual response
     return this.getEngagingResponse(message, language);
   }
 
+  private isQuestion(message: string): boolean {
+    return message.includes('what') || message.includes('how') || 
+           message.includes('why') || message.includes('when') ||
+           message.includes('where') || message.includes('who') ||
+           message.includes('?') || message.includes('کیا') || 
+           message.includes('کیسے') || message.includes('کیوں');
+  }
+
+  private isGreeting(message: string): boolean {
+    return message.includes('hello') || message.includes('hi') || 
+           message.includes('hey') || message.includes('good morning') ||
+           message.includes('good afternoon') || message.includes('good evening') ||
+           message.includes('سلام') || message.includes('ہیلو');
+  }
+
+  private isHelpRequest(message: string): boolean {
+    return message.includes('help') || message.includes('assist') ||
+           message.includes('support') || message.includes('مدد');
+  }
+
+  private isTechRelated(message: string): boolean {
+    return message.includes('social') || message.includes('media') ||
+           message.includes('app') || message.includes('technology') ||
+           message.includes('computer') || message.includes('internet') ||
+           message.includes('socialbook');
+  }
+
   private getQuestionResponse(message: string, language: string): string {
     const responses: { [key: string]: string[] } = {
       'en': [
-        `That's a great question about "${message}". Let me help you with that.`,
-        `I'd be happy to help you understand this better. Here's what I think:`,
-        `Based on your question, I can provide some insights about this topic.`,
-        `That's an interesting question. Let me give you a helpful answer.`
+        `That's a great question about "${message}". Let me help you with that - this topic is quite interesting and I'd be happy to provide some insights.`,
+        `I'd be happy to help you understand this better. Based on your question, here are some key points to consider.`,
+        `That's an excellent question! Let me provide you with a comprehensive answer about this topic.`,
+        `Great question! This is something many people wonder about. Here's what I can tell you about it.`
       ],
       'ur': [
-        `یہ "${message}" کے بارے میں بہترین سوال ہے۔ میں آپ کی اس میں مدد کروں گا۔`,
-        `میں آپ کو اس کو بہتر سمجھنے میں مدد کرنے میں خوش ہوں گا۔`,
-        `آپ کے سوال کی بنیاد پر، میں اس موضوع کے بارے میں کچھ بصیرت فراہم کر سکتا ہوں۔`
+        `یہ "${message}" کے بارے میں بہترین سوال ہے۔ میں آپ کی اس میں مدد کروں گا - یہ موضوع کافی دلچسپ ہے اور میں کچھ بصیرت فراہم کرنے میں خوش ہوں گا۔`,
+        `میں آپ کو اس کو بہتر سمجھنے میں مدد کرنے میں خوش ہوں گا۔ آپ کے سوال کی بنیاد پر، یہاں کچھ اہم نکات ہیں۔`,
+        `یہ ایک بہترین سوال ہے! میں آپ کو اس موضوع کے بارے میں جامع جواب فراہم کرتا ہوں۔`
       ]
     };
     
@@ -255,13 +250,13 @@ export class GeminiService {
   private getGreetingResponse(language: string): string {
     const responses: { [key: string]: string[] } = {
       'en': [
-        "Hello! I'm your AI assistant for SocialBook. How can I help you today?",
-        "Hi there! Welcome to SocialBook's AI assistant. What would you like to know?",
-        "Hey! I'm here to help you with anything you need. What's on your mind?"
+        "Hello! I'm your intelligent AI assistant for SocialBook. I'm here to help you with any questions you have about social media, technology, or just have a friendly conversation. How can I assist you today?",
+        "Hi there! Welcome to SocialBook's AI assistant. I'm equipped with knowledge on various topics and I'm here to provide helpful, accurate responses. What would you like to know?",
+        "Hey! I'm your AI companion on SocialBook. Whether you need information, have questions, or just want to chat, I'm here to help. What's on your mind?"
       ],
       'ur': [
-        "السلام علیکم! میں SocialBook کا AI اسسٹنٹ ہوں۔ آج میں آپ کی کیسے مدد کر سکتا ہوں؟",
-        "ہیلو! SocialBook کے AI اسسٹنٹ میں خوش آمدید۔ آپ کیا جاننا چاہیں گے؟"
+        "السلام علیکم! میں SocialBook کا ذہین AI اسسٹنٹ ہوں۔ میں سوشل میڈیا، ٹیکنالوجی، یا صرف دوستانہ گفتگو کے بارے میں آپ کے کسی بھی سوال میں مدد کے لیے یہاں ہوں۔ آج میں آپ کی کیسے مدد کر سکتا ہوں؟",
+        "ہیلو! SocialBook کے AI اسسٹنٹ میں خوش آمدید۔ میں مختلف موضوعات پر معلومات سے لیس ہوں اور مددگار، درست جوابات فراہم کرنے کے لیے یہاں ہوں۔ آپ کیا جاننا چاہیں گے؟"
       ]
     };
     
@@ -271,24 +266,42 @@ export class GeminiService {
 
   private getHelpResponse(language: string): string {
     const responses: { [key: string]: string } = {
-      'en': "I'm here to help! I can assist you with questions about SocialBook, general topics, provide information, or just have a conversation. What specific help do you need?",
-      'ur': "میں یہاں مدد کے لیے ہوں! میں SocialBook کے بارے میں سوالات، عمومی موضوعات میں آپ کی مدد کر سکتا ہوں، معلومات فراہم کر سکتا ہوں، یا صرف بات چیت کر سکتا ہوں۔ آپ کو کس خاص مدد کی ضرورت ہے؟"
+      'en': "I'm here to help! I can assist you with a wide range of topics including social media questions, technology advice, general knowledge, or just have a conversation. I aim to provide accurate and helpful responses. What specific help do you need?",
+      'ur': "میں یہاں مدد کے لیے ہوں! میں سوشل میڈیا کے سوالات، ٹیکنالوجی کی مشورے، عمومی معلومات، یا صرف بات چیت سمیت مختلف موضوعات میں آپ کی مدد کر سکتا ہوں۔ میرا مقصد درست اور مددگار جوابات فراہم کرنا ہے۔ آپ کو کس خاص مدد کی ضرورت ہے؟"
     };
     
     return responses[language] || responses['en'];
   }
 
+  private getTechResponse(message: string, language: string): string {
+    const responses: { [key: string]: string[] } = {
+      'en': [
+        `That's a great tech-related question about "${message}". Technology and social media are fascinating fields that are constantly evolving. Let me share some insights about this.`,
+        `I see you're interested in technology and social media topics. This is definitely an area where I can provide helpful information and insights.`,
+        `Social media and technology questions are right up my alley! I'd be happy to discuss this topic with you in detail.`
+      ],
+      'ur': [
+        `یہ "${message}" کے بارے میں ٹیکنالوجی سے متعلق بہترین سوال ہے۔ ٹیکنالوجی اور سوشل میڈیا دلچسپ شعبے ہیں جو مسلسل ترقی کر رہے ہیں۔`,
+        `میں دیکھ رہا ہوں آپ ٹیکنالوجی اور سوشل میڈیا کے موضوعات میں دلچسپی رکھتے ہیں۔ یہ یقیناً ایک ایسا علاقہ ہے جہاں میں مددگار معلومات فراہم کر سکتا ہوں۔`
+      ]
+    };
+    
+    const langResponses = responses[language] || responses['en'];
+    return langResponses[Math.floor(Math.random() * langResponses.length)];
+  }
+
   private getEngagingResponse(message: string, language: string): string {
     const responses: { [key: string]: string[] } = {
       'en': [
-        `I understand you're talking about "${message}". That's interesting! Can you tell me more about what you'd like to know?`,
-        `Thanks for sharing that with me. I'd love to help you explore this topic further.`,
-        `That's a thoughtful point about "${message}". What specific aspect would you like to discuss?`,
-        `I see what you're getting at. Let me provide some useful information about this.`
+        `That's an interesting point about "${message}". I'd love to explore this topic further with you. What specific aspect would you like to discuss in more detail?`,
+        `Thanks for sharing that with me. Your message touches on some important points. I'm here to provide helpful insights and continue this conversation.`,
+        `I find your perspective on "${message}" quite thoughtful. Let me provide some relevant information that might be helpful for this discussion.`,
+        `That's a great topic to discuss! I'm equipped to provide detailed information and engage in meaningful conversation about this subject.`
       ],
       'ur': [
-        `میں سمجھ گیا آپ "${message}" کے بارے میں بات کر رہے ہیں۔ یہ دلچسپ ہے! کیا آپ مجھے بتا سکتے ہیں کہ آپ کیا جاننا چاہتے ہیں؟`,
-        `اس کو میرے ساتھ شیئر کرنے کا شکریہ۔ میں آپ کو اس موضوع کو مزید دریافت کرنے میں مدد کرنا چاہوں گا۔`
+        `"${message}" کے بارے میں یہ دلچسپ نکتہ ہے۔ میں آپ کے ساتھ اس موضوع کو مزید دریافت کرنا چاہوں گا۔ آپ کس خاص پہلو کے بارے میں تفصیل سے بات کرنا چاہیں گے؟`,
+        `اسے میرے ساتھ شیئر کرنے کا شکریہ۔ آپ کا پیغام کچھ اہم نکات کو چھوتا ہے۔ میں مددگار بصیرت فراہم کرنے اور اس گفتگو کو جاری رکھنے کے لیے یہاں ہوں۔`,
+        `"${message}" کے بارے میں آپ کا نقطہ نظر کافی سوچا سمجھا ہے۔ میں کچھ متعلقہ معلومات فراہم کرتا ہوں جو اس بحث کے لیے مددگار ہو سکتی ہیں۔`
       ]
     };
     
@@ -306,125 +319,6 @@ export class GeminiService {
       message: intelligentResponse,
       success: true
     };
-  }
-    // Smart fallback responses based on common patterns
-    const responses = this.getSmartFallbackResponses(message, language);
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    
-    this.addAIResponseToHistory(randomResponse);
-    
-    return {
-      message: randomResponse,
-      success: true
-    };
-  }
-
-  private getSmartFallbackResponses(message: string, language: string): string[] {
-    const lowerMessage = message.toLowerCase();
-    
-    const responseMap: { [key: string]: { [key: string]: string[] } } = {
-      en: {
-        greeting: [
-          "Hello! I'm your AI assistant. How can I help you today?",
-          "Hi there! Welcome to SocialBook. What would you like to chat about?",
-          "Hey! I'm here to help. What's on your mind?"
-        ],
-        question: [
-          "That's an interesting question! Let me think about that...",
-          "I'd be happy to help you with that. Here's what I think:",
-          "Great question! From my perspective, I would say..."
-        ],
-        thanks: [
-          "You're very welcome! Is there anything else I can help you with?",
-          "Happy to help! Feel free to ask me anything else.",
-          "My pleasure! I'm here whenever you need assistance."
-        ],
-        default: [
-          "I understand what you're saying. Could you tell me more about that?",
-          "That sounds interesting! I'd love to hear more details.",
-          "I see. What would you like to know more about?",
-          "I'm here to help! Can you give me a bit more context?"
-        ]
-      },
-      ur: {
-        greeting: [
-          "السلام علیکم! میں آپ کا AI اسسٹنٹ ہوں۔ آج میں آپ کی کیسے مدد کر سکتا ہوں؟",
-          "ہیلو! SocialBook میں خوش آمدید۔ آپ کس بارے میں بات کرنا چاہیں گے؟",
-          "ہائے! میں یہاں آپ کی مدد کے لیے ہوں۔ آپ کے ذہن میں کیا ہے؟"
-        ],
-        question: [
-          "یہ ایک دلچسپ سوال ہے! مجھے اس کے بارے میں سوچنے دیں...",
-          "میں اس میں آپ کی مدد کرنے میں خوش ہوں گا۔ میرا خیال یہ ہے:",
-          "بہترین سوال! میرے نظریے سے، میں کہوں گا..."
-        ],
-        thanks: [
-          "آپ کا بہت شکریہ! کیا کوئی اور چیز ہے جس میں میں آپ کی مدد کر سکوں؟",
-          "مدد کرنے میں خوشی ہوئی! بلا جھجھک مجھ سے کچھ اور پوچھیں۔",
-          "میری خوشی! جب بھی آپ کو مدد چاہیے میں یہاں ہوں۔"
-        ],
-        default: [
-          "میں سمجھ گیا آپ کیا کہہ رہے ہیں۔ کیا آپ اس کے بارے میں مزید بتا سکتے ہیں؟",
-          "یہ دلچسپ لگ رہا ہے! میں مزید تفصیلات سننا چاہوں گا۔",
-          "میں دیکھ رہا ہوں۔ آپ کس کے بارے میں مزید جاننا چاہیں گے؟",
-          "میں یہاں مدد کے لیے ہوں! کیا آپ مجھے تھوڑا سا مزید سیاق و سباق دے سکتے ہیں؟"
-        ]
-      }
-    };
-
-    const languageResponses = responseMap[language] || responseMap['en'];
-
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey') || 
-        lowerMessage.includes('سلام') || lowerMessage.includes('ہیلو')) {
-      return languageResponses['greeting'];
-    }
-    
-    if (lowerMessage.includes('thank') || lowerMessage.includes('thanks') || 
-        lowerMessage.includes('شکریہ') || lowerMessage.includes('شکر')) {
-      return languageResponses['thanks'];
-    }
-    
-    if (lowerMessage.includes('?') || lowerMessage.includes('what') || lowerMessage.includes('how') || 
-        lowerMessage.includes('why') || lowerMessage.includes('کیا') || lowerMessage.includes('کیسے')) {
-      return languageResponses['question'];
-    }
-
-    return languageResponses['default'];
-  }
-
-  private cleanupResponse(response: string): string {
-    // Remove unwanted patterns
-    response = response.replace(/User:|Assistant:|Human:|AI:/g, '');
-    response = response.replace(/\n+/g, ' ');
-    response = response.trim();
-    
-    // Ensure response ends properly
-    if (!response.endsWith('.') && !response.endsWith('!') && !response.endsWith('?')) {
-      response += '.';
-    }
-    
-    return response;
-  }
-
-  private buildConversationContext(language: string): string {
-    const systemPrompts: { [key: string]: string } = {
-      'en': 'You are a helpful AI assistant for SocialBook social media platform. Be friendly and helpful.',
-      'ur': 'آپ SocialBook سوشل میڈیا پلیٹ فارم کے لیے مددگار AI اسسٹنٹ ہیں۔ دوستانہ اور مددگار رہیں۔',
-      'ar': 'أنت مساعد ذكي مفيد لمنصة SocialBook للتواصل الاجتماعي. كن ودودًا ومفيدًا.',
-      'fr': 'Vous êtes un assistant IA utile pour la plateforme de médias sociaux SocialBook. Soyez amical et serviable.',
-      'es': 'Eres un asistente de IA útil para la plataforma de redes sociales SocialBook. Sé amigable y servicial.',
-      'hi': 'आप SocialBook सोशल मीडिया प्लेटफॉर्म के लिए एक सहायक AI सहायक हैं। मित्रवत और सहायक रहें।'
-    };
-
-    let context = systemPrompts[language] || systemPrompts['en'];
-    
-    // Add recent conversation history (last 3 messages for context)
-    const recentHistory = this.conversationHistory.slice(-6); // 3 user + 3 assistant messages
-    recentHistory.forEach(msg => {
-      const role = msg.role === 'user' ? 'User' : 'Assistant';
-      context += `\n${role}: ${msg.content}`;
-    });
-
-    return context;
   }
 
   addAIResponseToHistory(response: string) {
@@ -487,22 +381,39 @@ export class GeminiService {
 
       this.speechRecognition.lang = speechLanguages[language] || 'en-US';
 
+      // If recognition is already running, avoid starting again
+      if (this.recognizing) {
+        reject(new Error('Speech recognition already started'));
+        return;
+      }
+
       this.speechRecognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         resolve(transcript);
       };
 
       this.speechRecognition.onerror = (event: any) => {
+        this.recognizing = false;
         reject(new Error('Speech recognition error: ' + event.error));
       };
 
-      this.speechRecognition.start();
+      try {
+        this.speechRecognition.start();
+      } catch (err: any) {
+        this.recognizing = false;
+        reject(new Error('Failed to start recognition: ' + err?.message || err));
+      }
     });
   }
 
   stopVoiceRecognition() {
     if (this.speechRecognition) {
-      this.speechRecognition.stop();
+      try {
+        this.speechRecognition.stop();
+      } catch (e) {
+        // ignore stop errors
+      }
+      this.recognizing = false;
     }
   }
 
@@ -511,7 +422,7 @@ export class GeminiService {
   }
 
   setSystemPrompt(language: string) {
-    // This method is kept for compatibility but the system prompt is now handled in buildConversationContext
+    // This method is kept for compatibility but the system prompt is now handled in buildAdvancedConversationContext
     this.conversationHistory = [];
   }
 

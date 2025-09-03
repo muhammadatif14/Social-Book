@@ -1,0 +1,115 @@
+<div class="container py-5" *ngIf="!loading">
+  <!-- Back Navigation -->
+  <div class="mb-4">
+    <button class="btn btn-outline-secondary" (click)="goBack()">
+      <i class="bi bi-arrow-left me-2"></i>Back to Home
+    </button>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="alert alert-danger">
+    {{ error }}
+  </div>
+
+  <!-- Product Detail -->
+  <div *ngIf="product && !error" class="row">
+    <!-- Product Images -->
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-body p-3">
+          <!-- Main Image -->
+          <div class="text-center mb-3">
+            <img [src]="getMainImage()" 
+                 [alt]="product.title" 
+                 class="img-fluid rounded"
+                 style="max-height: 400px; object-fit: cover;">
+          </div>
+          
+          <!-- Image Thumbnails -->
+          <div class="d-flex gap-2 justify-content-center flex-wrap" *ngIf="product.images && product.images.length > 1">
+            <div *ngFor="let image of product.images; let i = index" 
+                 class="thumbnail-container"
+                 [class.active]="i === selectedImageIndex"
+                 (click)="selectImage(i)"
+                 style="cursor: pointer;">
+              <img [src]="image" 
+                   [alt]="product.title + ' image ' + (i + 1)"
+                   class="img-thumbnail"
+                   style="width: 60px; height: 60px; object-fit: cover;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product Info -->
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-body p-4">
+          <!-- Category Badge -->
+          <div class="mb-3">
+            <span class="badge bg-primary">{{ product.category.name }}</span>
+          </div>
+
+          <!-- Product Title -->
+          <h1 class="card-title h3 mb-3">{{ product.title }}</h1>
+
+          <!-- Price -->
+          <div class="mb-4">
+            <h2 class="text-success mb-0">${{ product.price.toFixed(2) }}</h2>
+          </div>
+
+          <!-- Description -->
+          <div class="mb-4">
+            <h5>Description</h5>
+            <p class="text-muted">{{ product.description }}</p>
+          </div>
+
+          <!-- Quantity Selector -->
+          <div class="mb-4">
+            <label class="form-label">Quantity</label>
+            <div class="input-group" style="max-width: 150px;">
+              <button class="btn btn-outline-secondary" type="button" (click)="decreaseQuantity()">-</button>
+              <input type="number" class="form-control text-center" [(ngModel)]="quantity" min="1" readonly>
+              <button class="btn btn-outline-secondary" type="button" (click)="increaseQuantity()">+</button>
+            </div>
+          </div>
+
+          <!-- Total Price -->
+          <div class="mb-4">
+            <h5>Total: <span class="text-success">${{ (product.price * quantity).toFixed(2) }}</span></h5>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="d-grid gap-2">
+            <button class="btn btn-primary btn-lg" (click)="buyNow()">
+              <i class="bi bi-cart-check me-2"></i>Buy Now
+            </button>
+            <button class="btn btn-outline-primary btn-lg" (click)="addToCart()">
+              <i class="bi bi-cart-plus me-2"></i>Add to Cart
+            </button>
+          </div>
+
+          <!-- Product Meta -->
+          <div class="mt-4 pt-4 border-top">
+            <small class="text-muted">
+              <div><strong>Product ID:</strong> {{ product.id }}</div>
+              <div><strong>Created:</strong> {{ product.creationAt | date:'medium' }}</div>
+              <div><strong>Updated:</strong> {{ product.updatedAt | date:'medium' }}</div>
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading State -->
+<div *ngIf="loading" class="container py-5">
+  <div class="text-center">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-3">Loading product details...</p>
+  </div>
+</div>

@@ -137,4 +137,36 @@ namespace SocialMediaApi.DTOs
         public DateTime CreatedAt { get; set; }
         public string Username { get; set; } = string.Empty;
     }
+
+    // Order DTOs
+    public class CreateOrderDto
+    {
+        public int UserId { get; set; }
+        public int ProductId { get; set; }
+        public string ProductTitle { get; set; } = string.Empty;
+        public decimal ProductPrice { get; set; }
+        public int Quantity { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerEmail { get; set; } = string.Empty;
+        public string ShippingAddress { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+    }
+
+    public class OrderDto
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int ProductId { get; set; }
+        public string ProductTitle { get; set; } = string.Empty;
+        public decimal ProductPrice { get; set; }
+        public int Quantity { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerEmail { get; set; } = string.Empty;
+        public string ShippingAddress { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        public string OrderStatus { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
 }

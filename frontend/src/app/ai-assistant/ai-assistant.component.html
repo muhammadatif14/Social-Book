@@ -2,19 +2,64 @@
   <!-- Header -->
   <div class="ai-header">
     <div class="ai-brand">
-      <div class="ai-avatar">
-        <i class="bi bi-robot"></i>
+      <div class="ai-avatar" [class.jarvis-mode]="isJarvisMode">
+        <i class="bi" [class.bi-robot]="!isJarvisMode" [class.bi-lightning-charge]="isJarvisMode"></i>
       </div>
       <div class="ai-info">
-        <h2 class="ai-title">AI Assistant</h2>
-        <span class="ai-status" [class.online]="isConnected" [class.offline]="!isConnected">
+        <h2 class="ai-title">
+          {{ isJarvisMode ? 'Jarvis AI Agent' : 'AI Assistant' }}
+        </h2>
+        <span class="ai-status" 
+              [class.online]="isJarvisMode ? jarvisConfig.isConnected : isConnected" 
+              [class.offline]="isJarvisMode ? !jarvisConfig.isConnected : !isConnected"
+              [class.jarvis-online]="isJarvisMode && jarvisConfig.isConnected">
           <i class="bi bi-circle-fill"></i>
-          {{ isConnected ? 'Online & Ready' : 'Connection Error' }}
+          {{ getStatusText() }}
         </span>
       </div>
     </div>
     
     <div class="ai-controls">
+      <!-- Jarvis Mode Toggle -->
+      <div class="jarvis-controls">
+        <div class="mode-toggle">
+          <button class="mode-btn" 
+                  [class.active]="!isJarvisMode" 
+                  (click)="toggleJarvisMode()"
+                  [disabled]="isStartingJarvis">
+            <i class="bi bi-robot"></i>
+            <span>Gemini</span>
+          </button>
+          <button class="mode-btn jarvis-btn" 
+                  [class.active]="isJarvisMode" 
+                  (click)="toggleJarvisMode()"
+                  [disabled]="isStartingJarvis">
+            <i class="bi bi-lightning-charge"></i>
+            <span>Jarvis</span>
+          </button>
+        </div>
+        
+        <!-- Jarvis Start/Stop Controls -->
+        <div class="jarvis-power-controls" *ngIf="!isJarvisMode || !jarvisConfig.isRunning">
+          <button class="start-jarvis-btn" 
+                  (click)="startJarvis()" 
+                  [disabled]="isStartingJarvis || jarvisConfig.isRunning"
+                  title="Start Jarvis AI Agent">
+            <i class="bi bi-play-circle" *ngIf="!isStartingJarvis"></i>
+            <i class="bi bi-arrow-clockwise spin" *ngIf="isStartingJarvis"></i>
+            <span>{{ isStartingJarvis ? 'Starting...' : 'Start Jarvis' }}</span>
+          </button>
+        </div>
+        
+        <div class="jarvis-power-controls" *ngIf="isJarvisMode && jarvisConfig.isRunning">
+          <button class="stop-jarvis-btn" 
+                  (click)="stopJarvis()" 
+                  title="Stop Jarvis AI Agent">
+            <i class="bi bi-stop-circle"></i>
+            <span>Stop Jarvis</span>
+          </button>
+        </div>
+      </div>
       <!-- Language Selector -->
       <div class="language-selector">
         <label for="language">{{ getLanguageFlag(selectedLanguage) }}</label>
@@ -41,11 +86,13 @@
   <div class="chat-container">
     <div class="chat-messages" #chatMessages>
       <div *ngFor="let message of messages" 
-           [class]="'message ' + message.sender" 
-           [@slideIn]>
+           [class]="'message ' + message.sender"
+           [class.jarvis-message]="message.isJarvis">
         
-        <div class="message-avatar" *ngIf="message.sender === 'ai'">
-          <i class="bi bi-robot"></i>
+        <div class="message-avatar" *ngIf="message.sender === 'ai' || message.sender === 'jarvis'">
+          <i class="bi" 
+             [class.bi-robot]="message.sender === 'ai'" 
+             [class.bi-lightning-charge]="message.sender === 'jarvis'"></i>
         </div>
         
         <div class="message-content">
@@ -65,9 +112,9 @@
       </div>
       
       <!-- Typing Indicator -->
-      <div *ngIf="isTyping" class="message ai typing-indicator">
+      <div *ngIf="isTyping" class="message ai typing-indicator" [class.jarvis-message]="isJarvisMode">
         <div class="message-avatar">
-          <i class="bi bi-robot"></i>
+          <i class="bi" [class.bi-robot]="!isJarvisMode" [class.bi-lightning-charge]="isJarvisMode"></i>
         </div>
         <div class="message-content">
           <div class="message-bubble">
@@ -141,9 +188,29 @@
       <i class="bi bi-mic"></i>
       <span>{{ voiceSupported ? 'Voice Recognition' : 'Voice (Not Supported)' }}</span>
     </div>
-    <div class="feature-item">
+    <div class="feature-item" *ngIf="!isJarvisMode">
       <i class="bi bi-chat-dots"></i>
       <span>Real-time Chat</span>
+    </div>
+    
+    <!-- Jarvis Features -->
+    <div class="jarvis-features" *ngIf="isJarvisMode">
+      <div class="feature-item jarvis-feature">
+        <i class="bi bi-gear"></i>
+        <span>System Control</span>
+      </div>
+      <div class="feature-item jarvis-feature">
+        <i class="bi bi-search"></i>
+        <span>Web Search</span>
+      </div>
+      <div class="feature-item jarvis-feature">
+        <i class="bi bi-folder"></i>
+        <span>File Management</span>
+      </div>
+      <div class="feature-item jarvis-feature">
+        <i class="bi bi-cloud"></i>
+        <span>Weather & Info</span>
+      </div>
     </div>
   </div>
 </div>

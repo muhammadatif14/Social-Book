@@ -1,16 +1,26 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AIService } from '../services/ai.service';
+import { GeminiService } from '../services/gemini.service';
+import { JarvisService, JarvisMessage } from '../services/jarvis.service';
 import { HttpClientModule } from '@angular/common/http';
+
+interface JarvisConfig {
+  isEnabled: boolean;
+  voiceEnabled: boolean;
+  autoStart: boolean;
+  isRunning: boolean;
+  isConnected: boolean;
+}
 
 interface Message {
   id: number;
   text: string;
-  sender: 'user' | 'ai';
+  sender: 'user' | 'ai' | 'jarvis';
   timestamp: Date;
   language: string;
   isVoice?: boolean;
+  isJarvis?: boolean;
 }
 
 @Component({
@@ -20,7 +30,7 @@ interface Message {
   templateUrl: './ai-assistant.component.html',
   styleUrl: './ai-assistant.component.css'
 })
-export class AiAssistantComponent implements OnInit {
+export class AiAssistantComponent implements OnInit, OnDestroy {
   messages: Message[] = [];
   userInput: string = '';
   selectedLanguage: string = 'en';
@@ -30,6 +40,19 @@ export class AiAssistantComponent implements OnInit {
   isConnected: boolean = true;
   errorMessage: string = '';
   voiceSupported: boolean = false;
+  
+  // Jarvis-specific properties
+  isJarvisMode: boolean = false;
+  jarvisConfig: JarvisConfig = {
+    isEnabled: true,
+    voiceEnabled: true,
+    autoStart: false,
+    isRunning: false,
+    isConnected: false
+  };
+  isStartingJarvis: boolean = false;
+  
+  private intervalId: any = null;
   
   languages = [
     { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -41,12 +64,56 @@ export class AiAssistantComponent implements OnInit {
     { code: 'hi', name: 'Hindi', flag: '🇮🇳' }
   ];
 
-  constructor(private aiService: AIService) {}
+  constructor(private geminiService: GeminiService, private jarvisService: JarvisService) {}
 
   ngOnInit() {
-    this.aiService.setSystemPrompt(this.selectedLanguage);
-    this.voiceSupported = this.aiService.isVoiceSupported();
+    this.geminiService.setSystemPrompt(this.selectedLanguage);
+    this.voiceSupported = this.geminiService.isVoiceSupported();
     this.addWelcomeMessage();
+    this.initializeJarvisSubscriptions();
+  }
+
+  ngOnDestroy() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
+  }
+
+  private initializeJarvisSubscriptions() {
+    // Use interval to monitor signal changes
+    this.intervalId = setInterval(() => {
+      // Update Jarvis config based on service signals
+      this.jarvisConfig.isRunning = this.jarvisService.status() === 'ready';
+      this.jarvisConfig.isConnected = this.jarvisService.isConnected();
+      
+      // Check for new messages
+      const currentMessages = this.jarvisService.messages();
+      const displayedJarvisMessages = this.messages.filter(m => m.isJarvis).length;
+      
+      if (currentMessages.length > displayedJarvisMessages) {
+        // Add new messages
+        for (let i = displayedJarvisMessages; i < currentMessages.length; i++) {
+          const jarvisMsg = currentMessages[i];
+          const message: Message = {
+            id: Date.now() + i,
+            text: jarvisMsg.content,
+            sender: jarvisMsg.isUser ? 'user' : 'jarvis',
+            timestamp: jarvisMsg.timestamp,
+            language: this.selectedLanguage,
+            isVoice: jarvisMsg.isVoice,
+            isJarvis: true
+          };
+          this.messages.push(message);
+          // Immediately speak Jarvis responses when they arrive
+          if (!this.isMuted && message.isVoice !== false && this.voiceSupported) {
+            // Use GeminiService TTS for consistent voice behavior
+            this.geminiService.speakText(message.text, this.selectedLanguage)
+              .catch(err => console.warn('TTS speak error:', err));
+          }
+        }
+        this.scrollToBottom();
+      }
+    }, 500); // Check every 500ms
   }
 
   addWelcomeMessage() {
@@ -81,7 +148,8 @@ export class AiAssistantComponent implements OnInit {
       text: this.userInput,
       sender: 'user',
       timestamp: new Date(),
-      language: this.selectedLanguage
+      language: this.selectedLanguage,
+      isJarvis: this.isJarvisMode
     };
 
     this.messages.push(userMessage);
@@ -90,15 +158,25 @@ export class AiAssistantComponent implements OnInit {
     this.isTyping = true;
     this.errorMessage = '';
 
-    // Send message to AI API
-    this.aiService.sendMessage(currentMessage, this.selectedLanguage).subscribe({
-      next: (response: any) => {
-        this.handleAIResponse(response);
-      },
-      error: (error: any) => {
+    if (this.isJarvisMode && this.jarvisConfig.isConnected) {
+      // Send message to Jarvis AI Agent
+      this.jarvisService.sendMessage(currentMessage, false).then(() => {
+        this.isTyping = false;
+      }).catch(error => {
+        this.isTyping = false;
         this.handleError(error);
-      }
-    });
+      });
+    } else {
+      // Send message to Gemini AI
+      this.geminiService.sendMessage(currentMessage, this.selectedLanguage).subscribe({
+        next: (response: any) => {
+          this.handleAIResponse(response);
+        },
+        error: (error: any) => {
+          this.handleError(error);
+        }
+      });
+    }
   }
 
   private handleAIResponse(response: any) {
@@ -118,7 +196,7 @@ export class AiAssistantComponent implements OnInit {
       
       // Speak the response if not muted and voice is supported
       if (!this.isMuted && this.voiceSupported) {
-        this.aiService.speakText(response.message, this.selectedLanguage)
+        this.geminiService.speakText(response.message, this.selectedLanguage)
           .catch(error => console.log('Speech synthesis error:', error));
       }
     } else {
@@ -133,7 +211,7 @@ export class AiAssistantComponent implements OnInit {
       const aiResponseText = response.candidates[0].content.parts[0].text;
       
       // Add AI response to conversation history
-      this.aiService.addAIResponseToHistory(aiResponseText);
+      this.geminiService.addAIResponseToHistory(aiResponseText);
       
       const aiMessage: Message = {
         id: Date.now(),
@@ -198,28 +276,48 @@ export class AiAssistantComponent implements OnInit {
       return;
     }
 
-    this.isListening = true;
+  // Prevent double-starting recognition
+  if (this.isListening) return;
+  this.isListening = true;
     this.errorMessage = '';
     
-    this.aiService.startVoiceRecognition(this.selectedLanguage)
-      .then(transcript => {
-        this.userInput = transcript;
-        this.isListening = false;
-        // Automatically send the message after voice recognition
-        if (this.userInput.trim()) {
-          this.sendMessage();
-        }
-      })
-      .catch(error => {
-        this.isListening = false;
-        this.errorMessage = `Voice recognition error: ${error.message}`;
-        console.error('Voice recognition error:', error);
-      });
+    if (this.isJarvisMode && this.jarvisConfig.isConnected) {
+      // Use Gemini voice recognition for Jarvis mode too
+      this.geminiService.startVoiceRecognition()
+        .then((transcript: string) => {
+          this.userInput = transcript;
+          this.isListening = false;
+          if (this.userInput.trim()) {
+            this.sendMessage();
+          }
+        })
+        .catch((error: any) => {
+          this.isListening = false;
+          // If recognition was already started elsewhere, show friendly message
+          this.errorMessage = `Voice recognition error: ${error.message || error}`;
+          console.error('Jarvis voice recognition error:', error);
+        });
+    } else {
+      // Use Gemini voice recognition
+      this.geminiService.startVoiceRecognition(this.selectedLanguage)
+        .then(transcript => {
+          this.userInput = transcript;
+          this.isListening = false;
+          if (this.userInput.trim()) {
+            this.sendMessage();
+          }
+        })
+        .catch(error => {
+          this.isListening = false;
+          this.errorMessage = `Voice recognition error: ${error.message || error}`;
+          console.error('Voice recognition error:', error);
+        });
+    }
   }
 
   stopVoiceRecording() {
     this.isListening = false;
-    this.aiService.stopVoiceRecognition();
+    this.geminiService.stopVoiceRecognition();
   }
 
   toggleMute() {
@@ -228,7 +326,7 @@ export class AiAssistantComponent implements OnInit {
 
   onLanguageChange() {
     // Set new system prompt for the selected language
-    this.aiService.setSystemPrompt(this.selectedLanguage);
+    this.geminiService.setSystemPrompt(this.selectedLanguage);
     
     // Add a system message about language change
     const langChangeMessages: { [key: string]: string } = {
@@ -269,11 +367,71 @@ export class AiAssistantComponent implements OnInit {
 
   clearChat() {
     this.messages = [];
-    this.aiService.clearConversation();
-    this.aiService.setSystemPrompt(this.selectedLanguage);
+    if (this.isJarvisMode) {
+      // Don't clear Jarvis conversation as it maintains state
+    } else {
+      this.geminiService.clearConversation();
+      this.geminiService.setSystemPrompt(this.selectedLanguage);
+    }
     this.addWelcomeMessage();
     this.errorMessage = '';
     this.isConnected = true;
+  }
+
+  // Jarvis-specific methods
+  async toggleJarvisMode() {
+    if (this.isJarvisMode) {
+      // Switch to Gemini mode
+      this.isJarvisMode = false;
+      this.clearChat();
+    } else {
+      // Switch to Jarvis mode
+      this.isJarvisMode = true;
+      this.clearChat();
+    }
+  }
+
+  async startJarvis() {
+    if (this.isStartingJarvis) return;
+    
+    this.isStartingJarvis = true;
+    this.errorMessage = '';
+    
+    try {
+      const success = await this.jarvisService.startJarvis();
+      if (success) {
+        this.isJarvisMode = true;
+        this.clearChat();
+        const jarvisStartMessage: Message = {
+          id: Date.now(),
+          text: 'Jarvis AI Agent is now online! I can control your system, search the web, manage files, and much more. How can I assist you?',
+          sender: 'jarvis',
+          timestamp: new Date(),
+          language: this.selectedLanguage,
+          isJarvis: true
+        };
+        this.messages.push(jarvisStartMessage);
+        this.scrollToBottom();
+      } else {
+        this.errorMessage = 'Failed to start Jarvis AI Agent. Please check the console for more details.';
+      }
+    } catch (error) {
+      this.errorMessage = `Error starting Jarvis: ${error}`;
+      console.error('Jarvis start error:', error);
+    } finally {
+      this.isStartingJarvis = false;
+    }
+  }
+
+  async stopJarvis() {
+    try {
+      await this.jarvisService.stopJarvis();
+      this.isJarvisMode = false;
+      this.clearChat();
+    } catch (error) {
+      this.errorMessage = `Error stopping Jarvis: ${error}`;
+      console.error('Jarvis stop error:', error);
+    }
   }
 
   getLanguageName(code: string): string {
@@ -282,5 +440,19 @@ export class AiAssistantComponent implements OnInit {
 
   getLanguageFlag(code: string): string {
     return this.languages.find(l => l.code === code)?.flag || '🌐';
+  }
+
+  getStatusText(): string {
+    if (this.isJarvisMode) {
+      if (this.jarvisConfig.isRunning && this.jarvisConfig.isConnected) {
+        return 'Jarvis Online & Ready';
+      } else if (this.jarvisConfig.isRunning && !this.jarvisConfig.isConnected) {
+        return 'Jarvis Starting...';
+      } else {
+        return 'Jarvis Offline';
+      }
+    } else {
+      return this.isConnected ? 'Online & Ready' : 'Connection Error';
+    }
   }
 }

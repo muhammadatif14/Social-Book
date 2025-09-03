@@ -5,6 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { SocialMediaService, PostResponse, CommentResponse, ProductDto } from '../services/social-media.service';
 import { StoryService, Story } from '../services/story.service';
 import { AuthService } from '../auth/auth.service';
+import { ChatService, ChatUser } from '../services/chat.service';
+import { EcommerceService, EcommerceProduct } from '../services/ecommerce.service';
 import { HttpClientModule } from '@angular/common/http';
 
 @Component({
@@ -19,8 +21,11 @@ export class Home implements OnInit {
   posts: PostResponse[] = [];
   stories: Story[] = [];
   products: ProductDto[] = [];
+  ecommerceProducts: EcommerceProduct[] = [];
+  friends: ChatUser[] = [];
   viewerOpen: boolean = false;
   currentIndex: number = -1;
+  unreadMessageCount: number = 0;
 
   get currentStory(): Story | null {
     if (this.currentIndex >= 0 && this.currentIndex < this.stories.length) return this.stories[this.currentIndex];
@@ -35,8 +40,10 @@ export class Home implements OnInit {
   constructor(
     private socialMediaService: SocialMediaService,
     private authService: AuthService,
-    private router: Router
-  , private storyService: StoryService
+    private router: Router,
+    private storyService: StoryService,
+    private chatService: ChatService,
+    private ecommerceService: EcommerceService
   ) {}
 
   async ngOnInit() {
@@ -49,6 +56,9 @@ export class Home implements OnInit {
     this.loadProfileImage();
     this.loadStories();
     this.loadProducts();
+    this.loadFriends();
+    this.loadEcommerceProducts();
+    this.initializeChatService();
       // Listen for postDeleted event from profile page
       if (window && window.addEventListener) {
         window.addEventListener('postDeleted', (e: any) => {
@@ -90,6 +100,46 @@ export class Home implements OnInit {
         this.products = [];
       }
     });
+  }
+
+  loadFriends() {
+    if (!this.currentUser) {
+      console.error('Cannot load friends: no current user');
+      return;
+    }
+
+    console.log('Loading friends for user ID:', this.currentUser.id);
+    this.chatService.getChatUsers(this.currentUser.id).subscribe({
+      next: (users) => {
+        console.log('Friends loaded successfully:', users);
+        this.friends = users.slice(0, 8); // Show only first 8 friends in sidebar
+      },
+      error: (error) => {
+        console.error('Error loading friends:', error);
+        this.friends = [];
+      }
+    });
+  }
+
+  loadEcommerceProducts() {
+    this.ecommerceService.getProducts(8, 0).subscribe({
+      next: (products) => {
+        this.ecommerceProducts = products;
+        console.log('Ecommerce products loaded:', this.ecommerceProducts);
+      },
+      error: (error) => {
+        console.error('Error loading ecommerce products:', error);
+        this.ecommerceProducts = [];
+      }
+    });
+  }
+
+  viewProduct(product: EcommerceProduct) {
+    this.router.navigate(['/product', product.id]);
+  }
+
+  startChatWithFriend(friend: ChatUser) {
+    this.router.navigate(['/chat'], { queryParams: { with: friend.id } });
   }
 
   startDeal(product: ProductDto) {
@@ -305,5 +355,20 @@ export class Home implements OnInit {
         console.error('Error creating comment:', error);
       }
     });
+  }
+
+  // Initialize chat service and listen for unread message count
+  async initializeChatService() {
+    try {
+      await this.chatService.startConnection();
+      this.chatService.initializeUnreadCount();
+      
+      // Subscribe to unread count changes
+      this.chatService.unreadCount$.subscribe(count => {
+        this.unreadMessageCount = count;
+      });
+    } catch (error) {
+      console.error('Error initializing chat service:', error);
+    }
   }
 }

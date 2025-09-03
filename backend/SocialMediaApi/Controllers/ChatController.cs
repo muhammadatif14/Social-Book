@@ -155,5 +155,22 @@ namespace SocialMediaApi.Controllers
                 return StatusCode(500, new { message = "Error sending message" });
             }
         }
+
+        // Get unread message count for a user
+        [HttpGet("unread-count/{userId}")]
+        public async Task<IActionResult> GetUnreadMessageCount(int userId)
+        {
+            try
+            {
+                var unreadCount = await _context.Chats
+                    .CountAsync(c => c.ReceiverId == userId && !c.IsRead);
+
+                return Ok(unreadCount);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error fetching unread count" });
+            }
+        }
     }
 }

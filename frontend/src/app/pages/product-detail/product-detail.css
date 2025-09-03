@@ -1,0 +1,53 @@
+.thumbnail-container {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: border-color 0.3s ease;
+}
+
+.thumbnail-container.active {
+  border-color: #007bff;
+}
+
+.thumbnail-container:hover {
+  border-color: #6c757d;
+}
+
+.card {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: none;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-weight: 600;
+}
+
+.badge {
+  font-size: 0.9em;
+  padding: 8px 12px;
+}
+
+.input-group .form-control {
+  border-left: none;
+  border-right: none;
+}
+
+.input-group .btn {
+  border-color: #ced4da;
+}
+
+.product-image {
+  transition: transform 0.3s ease;
+}
+
+.product-image:hover {
+  transform: scale(1.05);
+}
+
+.text-success {
+  color: #28a745 !important;
+}
+
+.border-top {
+  border-top: 1px solid #dee2e6 !important;
+}

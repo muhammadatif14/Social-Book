@@ -5,108 +5,79 @@
         <h1 class="auth-logo">SocialBook</h1>
         <p class="auth-subtitle">Join millions of people sharing their stories</p>
       </div>
-      
+
       <div class="auth-form">
         <h3 class="auth-title text-center mb-4">Create Account</h3>
-        
+
         <form (ngSubmit)="onSignup()" #signupForm="ngForm">
           <div class="mb-3">
             <label for="username" class="form-label auth-label">Username</label>
-            <input 
-              type="text" 
-              class="form-control auth-input" 
-              id="username"
-              name="username"
-              [(ngModel)]="signupData.username"
-              placeholder="Choose a username"
-              required
-              minlength="3"
+            <input type="text" class="form-control auth-input" id="username" name="username"
+              [(ngModel)]="signupData.username" placeholder="Choose a username" required minlength="3"
               #username="ngModel">
             <div *ngIf="username.invalid && username.touched" class="auth-error">
               <span *ngIf="username.errors?.['required']">Username is required</span>
               <span *ngIf="username.errors?.['minlength']">Username must be at least 3 characters</span>
             </div>
           </div>
-          
+
           <div class="mb-3">
             <label for="email" class="form-label auth-label">Email Address</label>
-            <input 
-              type="email" 
-              class="form-control auth-input" 
-              id="email"
-              name="email"
-              [(ngModel)]="signupData.email"
-              placeholder="Enter your email"
-              required
-              email
-              #email="ngModel">
+            <input type="email" class="form-control auth-input" id="email" name="email" [(ngModel)]="signupData.email"
+              placeholder="Enter your email" required email #email="ngModel">
             <div *ngIf="email.invalid && email.touched" class="auth-error">
               <span *ngIf="email.errors?.['required']">Email is required</span>
               <span *ngIf="email.errors?.['email']">Please enter a valid email address</span>
             </div>
           </div>
-          
+
           <div class="mb-3">
             <label for="password" class="form-label auth-label">Password</label>
-            <input 
-              type="password" 
-              class="form-control auth-input" 
-              id="password"
-              name="password"
-              [(ngModel)]="signupData.password"
-              placeholder="Create a password"
-              required
-              minlength="6"
+            <input type="password" class="form-control auth-input" id="password" name="password"
+              [(ngModel)]="signupData.password" placeholder="Create a password" required minlength="6"
               #password="ngModel">
             <div *ngIf="password.invalid && password.touched" class="auth-error">
               <span *ngIf="password.errors?.['required']">Password is required</span>
               <span *ngIf="password.errors?.['minlength']">Password must be at least 6 characters</span>
             </div>
           </div>
-          
+
           <div class="mb-3">
             <label for="confirmPassword" class="form-label auth-label">Confirm Password</label>
-            <input 
-              type="password" 
-              class="form-control auth-input" 
-              id="confirmPassword"
-              name="confirmPassword"
-              [(ngModel)]="signupData.confirmPassword"
-              placeholder="Confirm your password"
-              required
+            <input type="password" class="form-control auth-input" id="confirmPassword" name="confirmPassword"
+              [(ngModel)]="signupData.confirmPassword" placeholder="Confirm your password" required
               #confirmPassword="ngModel">
             <div *ngIf="confirmPassword.invalid && confirmPassword.touched" class="auth-error">
               Password confirmation is required
             </div>
-            <div *ngIf="signupData.password !== signupData.confirmPassword && confirmPassword.touched" class="auth-error">
+            <div *ngIf="signupData.password !== signupData.confirmPassword && confirmPassword.touched"
+              class="auth-error">
               Passwords do not match
             </div>
           </div>
-          
+
           <div *ngIf="errorMessage" class="alert alert-danger auth-alert" role="alert">
             {{ errorMessage }}
           </div>
-          
+
           <div *ngIf="successMessage" class="alert alert-success auth-success-alert" role="alert">
             {{ successMessage }}
           </div>
-          
-          <button 
-            type="submit" 
-            class="btn auth-btn w-100 mb-3"
+
+          <button type="submit" class="btn auth-btn w-100 mb-3"
             [disabled]="isLoading || signupForm.invalid || signupData.password !== signupData.confirmPassword">
             <span *ngIf="isLoading" class="spinner-border spinner-border-sm me-2" role="status"></span>
             {{ isLoading ? 'Creating Account...' : 'Create Account' }}
           </button>
         </form>
-        
+
         <div class="auth-divider">
           <span>or</span>
         </div>
-        
+
         <div class="text-center">
           <p class="auth-switch">
-            Already have an account? 
+            Already have an account?
             <a routerLink="/login" class="auth-link">Sign In</a>
           </p>
         </div>

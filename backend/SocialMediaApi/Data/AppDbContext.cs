@@ -16,6 +16,7 @@ namespace SocialMediaApi.Data
         public DbSet<Chat> Chats { get; set; }
         public DbSet<ChatRoom> ChatRooms { get; set; }
         public DbSet<Product> Products { get; set; }
+        public DbSet<Order> Orders { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -127,6 +128,26 @@ namespace SocialMediaApi.Data
                 entity.Property(e => e.Description).HasMaxLength(2000);
                 entity.Property(e => e.ImagePath).HasMaxLength(500);
                 entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
+
+                entity.HasOne(d => d.User)
+                    .WithMany()
+                    .HasForeignKey(d => d.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Order configuration
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.ToTable("Orders");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ProductTitle).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.ProductPrice).HasColumnType("decimal(10,2)");
+                entity.Property(e => e.TotalAmount).HasColumnType("decimal(10,2)");
+                entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.CustomerEmail).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.ShippingAddress).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Phone).HasMaxLength(20);
+                entity.Property(e => e.OrderStatus).IsRequired().HasMaxLength(50);
 
                 entity.HasOne(d => d.User)
                     .WithMany()

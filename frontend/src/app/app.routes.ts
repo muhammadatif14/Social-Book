@@ -7,6 +7,9 @@ import { Profile } from './pages/profile/profile';
 import { LoginComponent } from './auth/login/login';
 import { SignupComponent } from './auth/signup/signup';
 import { AiAssistantComponent } from './ai-assistant/ai-assistant.component';
+import { ProductDetail } from './pages/product-detail/product-detail';
+import { Checkout } from './pages/checkout/checkout';
+import { MyAssistantComponent } from './my-assistant/my-assistant.component';
 
 
 export const routes: Routes = [
@@ -30,6 +33,18 @@ export const routes: Routes = [
   {
     path: 'ai-assistant',
     component: AiAssistantComponent, canActivate: [AuthGuard]
+  },
+  {
+    path: 'product/:id',
+    component: ProductDetail, canActivate: [AuthGuard]
+  },
+  {
+    path: 'checkout',
+    component: Checkout, canActivate: [AuthGuard]
+  },
+  {
+    path: 'my-assistant',
+    component: MyAssistantComponent, canActivate: [AuthGuard]
   }
 ];
 

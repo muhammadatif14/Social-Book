@@ -1,0 +1,49 @@
+# Build outputs
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**.vs/
+**.vscode/
+
+# Environment and config files
+.env
+*.log
+
+# Dependencies
+package-lock.json
+
+# Database files
+*.db
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backend specific
+backend/SocialMediaApi/bin/
+backend/SocialMediaApi/obj/
+backend/node_modules/
+backend/package-lock.json
+
+# Frontend specific
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Uploads (if you want to exclude user uploads)
+**/uploads/
+
+# Test files
+test-*.json
+*.test.js

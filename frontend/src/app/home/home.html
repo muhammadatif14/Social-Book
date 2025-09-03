@@ -1,7 +1,7 @@
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark mb- sticky-top" style="z-index: 1050;">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="#">SocialBook</a>
+    <a class="navbar-brand fw-bold site-logo" href="#">S</a>
     <div class="d-flex w-100 align-items-center justify-content-between">
       <!-- <ul class="navbar-nav">
         <li class="nav-item">
@@ -23,7 +23,7 @@
       <form class="d-flex mx-auto searchbar-professional" style="width: 400px; max-width: 100%;">
         <div class="input-group shadow rounded-pill overflow-hidden">
           <input class="form-control border-0 px-4 py-2" type="search" placeholder="Search..." aria-label="Search"
-            style="background: #ffffff; color: #fff;">
+            style="background: #ffffff; color: #000000;">
           <button class="btn btn-outline-light px-4" type="submit" style="background: #333; border: none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path
@@ -33,6 +33,9 @@
           </button>
         </div>
       </form>
+      <div class="dpUserName text-light">
+      <p>{{currentUser?.username}}</p>
+      </div>
       <div class="d-flex align-items-center ms-3">
         <!-- User Profile Dropdown -->
         <div class="dropdown" style="position: relative;">
@@ -44,8 +47,15 @@
             style="display: block; position: absolute; right: 0; top: 48px;">
             <li><a class="dropdown-item d-flex align-items-center" (click)="logout(); toggleDropdown()"><i
                   class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
-            <li><a class="dropdown-item d-flex align-items-center" [routerLink]="['/chat']"
-                (click)="toggleDropdown()"><i class="bi bi-chat-dots me-2"></i>Chat</a></li>
+            <li><a class="dropdown-item d-flex align-items-center position-relative" [routerLink]="['/chat']"
+                (click)="toggleDropdown()">
+                <i class="bi bi-chat-dots me-2"></i>Chat
+                <span *ngIf="unreadMessageCount > 0" 
+                      class="position-absolute top-0 end-0 badge rounded-pill bg-danger"
+                      style="font-size: 0.65rem; min-width: 16px; height: 16px; margin-right: -8px; margin-top: -2px;">
+                  {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
+                </span>
+              </a></li>
             <li><a class="dropdown-item d-flex align-items-center" [routerLink]="['/profile']"
                 (click)="toggleDropdown()"><i class="bi bi-person me-2"></i>Profile</a></li>
             <li><a class="dropdown-item d-flex align-items-center" href="#" (click)="toggleDropdown()"><i
@@ -122,17 +132,32 @@
             </a>
           </li>
           <li class="nav-item mb-2">
-            <a class="nav-link left-side-links d-flex justify-content-between align-items-center px-3 py-2 rounded shadow-sm"
+            <a class="nav-link left-side-links d-flex justify-content-between align-items-center px-3 py-2 rounded shadow-sm position-relative"
               routerLink="/chat">
               <span class="fw-semibold">Chat</span>
-              <i class="bi bi-chat-dots ms-2"></i>
+              <div class="position-relative">
+                <i class="bi bi-chat-dots ms-2"></i>
+                <span *ngIf="unreadMessageCount > 0" 
+                      class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                      style="font-size: 0.7rem; min-width: 18px; height: 18px;">
+                  {{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}
+                  <span class="visually-hidden">unread messages</span>
+                </span>
+              </div>
             </a>
           </li>
-          <li class="nav-item mb-2">
+          <!-- <li class="nav-item mb-2">
             <a class="nav-link left-side-links d-flex justify-content-between align-items-center px-3 py-2 rounded shadow-sm"
               routerLink="/ai-assistant">
               <span class="fw-semibold">Ai Assistant</span>
               <i class="bi bi-robot me-1"></i>
+            </a>
+          </li> -->
+          <li class="nav-item mb-2">
+            <a class="nav-link left-side-links d-flex justify-content-between align-items-center px-3 py-2 rounded shadow-sm"
+              routerLink="/my-assistant">
+              <span class="fw-semibold">My Assistant</span>
+              <i class="bi bi-cpu ms-2"></i>
             </a>
           </li>
           <li class="nav-item mb-2">
@@ -188,7 +213,7 @@
     <!-- Feed -->
     <div class="col-lg-8 col-md-10 mx-auto mb-4">
       <!-- Create Post Section -->
-      <div class="card mb-4 shadow-sm">
+      <div class="card mb-4 shadow-sm create-post">
         <div class="card-body">
           <h5 class="card-title">Create a Post</h5>
           <div class="mb-3">
@@ -198,7 +223,7 @@
           <div class="mb-3">
             <input type="file" (change)="onPostImageChange($event)" accept="image/*" class="form-control">
           </div>
-          <button class="btn btn-primary" (click)="uploadPost()">Post</button>
+          <button class="btn" style="background-color: rgb(47, 172, 255); color: white;" (click)="uploadPost()">Post</button>
         </div>
       </div>
       <div class="d-flex flex-column align-items-center gap-4">
@@ -251,39 +276,51 @@
   <div class="sidebar-right h-100 p-3 sticky-top" style="top: 72px; z-index: 1040;">
         <h5 class="side-heading mb-4">Friends</h5>
         <ul class="nav flex-column right-links-list">
-          <li class="nav-item mb-2">
-            <div class="right-card d-flex align-items-center px-3 py-2 rounded shadow-sm">
-              <img src="https://randomuser.me/api/portraits/men/45.jpg" class="rounded-circle me-2" width="32"
-                height="32" alt="Friend">
-              <span class="fw-semibold">Alex Brown</span>
+          <li class="nav-item mb-2" *ngFor="let friend of friends">
+            <div class="right-card d-flex align-items-center px-3 py-2 rounded shadow-sm cursor-pointer" 
+                 (click)="startChatWithFriend(friend)"
+                 style="cursor: pointer;">
+              <img [src]="friend.profileImage || 'https://randomuser.me/api/portraits/men/' + (friend.id % 99) + '.jpg'" 
+                   class="rounded-circle me-2" width="32" height="32" [alt]="friend.username">
+              <span class="fw-semibold">{{ friend.username }}</span>
               <span class="badge bg-success ms-auto">Online</span>
             </div>
           </li>
-          <li class="nav-item mb-2">
-            <div class="right-card d-flex align-items-center px-3 py-2 rounded shadow-sm">
-              <img src="https://randomuser.me/api/portraits/women/46.jpg" class="rounded-circle me-2" width="32"
-                height="32" alt="Friend">
-              <span class="fw-semibold">Lisa White</span>
-              <span class="badge bg-success ms-auto">Online</span>
-            </div>
-          </li>
-          <li class="nav-item mb-2">
-            <div class="right-card d-flex align-items-center px-3 py-2 rounded shadow-sm">
-              <img src="https://randomuser.me/api/portraits/men/47.jpg" class="rounded-circle me-2" width="32"
-                height="32" alt="Suggested">
-              <span class="fw-semibold">Michael Green</span>
-              <span class="badge bg-primary ms-auto">Suggested</span>
-            </div>
-          </li>
-          <li class="nav-item mb-2">
-            <div class="right-card d-flex align-items-center px-3 py-2 rounded shadow-sm">
-              <img src="https://randomuser.me/api/portraits/women/48.jpg" class="rounded-circle me-2" width="32"
-                height="32" alt="Suggested">
-              <span class="fw-semibold">Emily Clark</span>
-              <span class="badge bg-primary ms-auto">Suggested</span>
+          
+          <!-- Show message if no friends loaded -->
+          <li class="nav-item mb-2" *ngIf="friends.length === 0">
+            <div class="right-card d-flex align-items-center px-3 py-2 rounded shadow-sm text-center">
+              <span class="text-muted small">No friends to show</span>
             </div>
           </li>
         </ul>
+        
+        <!-- Ecommerce Products Section -->
+        <div class="mt-4">
+          <h5 class="side-heading mb-3">Shop Products</h5>
+          <div class="ecommerce-section p-2 rounded shadow-sm">
+            <div class="ecommerce-list d-flex flex-column gap-3">
+              <div *ngFor="let product of ecommerceProducts" 
+                   class="ecommerce-card p-2 rounded bg-white shadow-sm cursor-pointer"
+                   (click)="viewProduct(product)"
+                   style="cursor: pointer; transition: transform 0.2s;"
+                   onmouseover="this.style.transform='scale(1.02)'"
+                   onmouseout="this.style.transform='scale(1)'">
+                <img *ngIf="product.images && product.images.length > 0" 
+                     [src]="product.images[0]" 
+                     class="img-fluid rounded mb-2" 
+                     style="width:100%; height:100px; object-fit:cover;"
+                     [alt]="product.title">
+                <div class="fw-semibold small text-truncate" [title]="product.title">{{ product.title }}</div>
+                <div class="text-success small fw-bold">${{ product.price.toFixed(2) }}</div>
+                <div class="text-muted small">{{ product.category.name }}</div>
+              </div>
+              <div *ngIf="ecommerceProducts?.length === 0" class="text-center text-muted small p-2">
+                Loading products...
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
