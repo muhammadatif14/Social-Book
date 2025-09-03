@@ -10,6 +10,18 @@
 .env
 *.log
 
+# Sensitive files
+*.json
+!package.json
+!package-lock.json
+!tsconfig*.json
+!angular.json
+
+# API Keys and credentials
+**/key.py
+**/*credentials*.json
+**/*key*.json
+
 # Dependencies
 package-lock.json
 
